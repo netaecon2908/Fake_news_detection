@@ -1,0 +1,52 @@
+!pip install lime
+from lime.lime_text import LimeTextExplainer
+import gc
+
+class_names = ["FAKE", "REAL"]
+
+
+def predict_proba(texts):
+    inputs = tokenizer(
+        texts,
+        truncation=True,
+        padding="max_length",
+        max_length=128,
+        return_tensors="pt"
+    )
+    model.to("cpu")
+    inputs = {k: v.to("cpu") for k, v in inputs.items()}
+    model.eval()
+    with torch.no_grad():
+        outputs = model(**inputs)
+        logits = outputs.logits
+        probs = torch.nn.functional.softmax(logits, dim=1).cpu().numpy()
+    return probs
+
+explainer = LimeTextExplainer(class_names=class_names)
+
+
+idx = 1450
+text = test_texts[idx]
+print(f"\nTest Example Index: {idx}")
+print("Text:", text[:300], "...")
+print("True label:", class_names[test_labels[idx]])
+print("Model prediction:", class_names[preds[idx]])
+print("-----")
+
+gc.collect()
+torch.cuda.empty_cache()
+
+
+exp = explainer.explain_instance(
+    text,
+    predict_proba,
+    num_features=10,
+    num_samples=128,
+    labels=[0, 1]
+)
+
+try:
+    exp.show_in_notebook(text=True)
+except:
+    exp.save_to_file(f"lime_explanation_{idx}.html")
+    print(f"Explanation saved to lime_explanation_{idx}.html")
